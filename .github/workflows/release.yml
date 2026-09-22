@@ -1,0 +1,52 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-exe:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install build deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" pyinstaller
+
+      - name: Tests
+        run: python -m pytest -q
+
+      - name: Build portable exe
+        run: python -m PyInstaller --noconfirm --clean forexdecsters.spec
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: forexdecsters-windows-installer
+          path: dist/forexdecsters-windows-installer.exe
+
+      - name: GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/forexdecsters-windows-installer.exe
+          generate_release_notes: true
+          body: |
+            Portable Windows build. Python not required.
+
+            Download `forexdecsters-windows-installer.exe` and run it.
+            It installs Windows Server 2019 ServerDatacenter on a Linux KVM VPS you control.
+            The ISO is looked up by reinstall.sh. It does not include a Windows license.
